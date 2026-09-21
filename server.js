@@ -38,7 +38,17 @@ app.get("/", (req, res) => {
   })
 
   //addUserName
-  app.get("/addusername", (req, res) => {
+  app.post("/addusername", async (req, res) => {
+    const username = req.body.username
+    try{
+      const { data, error } = await supabase.from("profiles").update({username: username}).eq("id", id).select()
+      if(error){
+        res.send({success: false, data: error})
+      }
+      res.send({success: true, data: data})
+    }catch(err){
+      res.send({success: false, data: err})
+    }
 
   })
 
