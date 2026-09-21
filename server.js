@@ -1,10 +1,9 @@
-import dotenv from "dotenv";
-
-dotenv.config({ path: ".env.local" });
-
 import express from "express";
 import cors from "cors";
 import supabase from "./supabase.js";
+import dotenv from "dotenv";
+
+dotenv.config({ path: ".env.local" });
 
 const app = express();
 const PORT = process.env.PORT || 7005;
@@ -20,7 +19,21 @@ app.get("/", (req, res) => {
 
 //API Auth Requests
   //getUserData
-  app.get("/getuserdata", (req, res) => {
+  app.post("/api/getuserdata", async (req, res) => {
+    console.log("in server req ", req.body)
+    const id = req.body.id
+   
+    try {
+      const { data, error } = await supabase.from("profiles").select("*").eq("id", id).single();
+      if(error){
+        console.log("getUserData error ", error)
+        res.send({success: false, data: error})
+      }
+      res.send({success: true, data: data})
+    } catch(err){
+      console.log("caught error in getuserdata")
+      res.send({success: false, data: err})
+    }
 
   })
 
