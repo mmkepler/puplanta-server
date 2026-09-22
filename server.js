@@ -20,7 +20,7 @@ app.get("/", (req, res) => {
 //API Auth Requests
   //getUserData
   app.post("/api/getuserdata", async (req, res) => {
-    console.log("in server req ", req.body)
+    //console.log("in server req ", req.body)
     const id = req.body.id
    
     try {
@@ -37,24 +37,23 @@ app.get("/", (req, res) => {
 
   })
 
-  //addUserName
-  app.post("/addusername", async (req, res) => {
-    const username = req.body.username
-    try{
-      const { data, error } = await supabase.from("profiles").update({username: username}).eq("id", id).select()
+  //signInUser
+  app.post("/api/signin", async (req, res) => {
+    //console.log("server in signin : ", req.body)
+    const email = req.body.email
+    const pw = req.body.password
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({email: email, password: pw})
       if(error){
+        //console.log("server error ", error)
         res.send({success: false, data: error})
       }
-      res.send({success: true, data: data})
+      res.send({success: true, data})
     }catch(err){
+      //console.log("server error err : ", err)
       res.send({success: false, data: err})
     }
-
-  })
-
-  //signInUser
-  app.get("/signin", (req, res) => {
-
   })
 
   //signUpUser
