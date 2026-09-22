@@ -57,8 +57,21 @@ app.get("/", (req, res) => {
   })
 
   //signUpUser
-  app.get("/signup", (req, res) => {
-
+  app.post("/api/signup", async(req, res) => {
+    const [email, password, username] = req.body
+    try{
+      const {data, error} = await supabase.auth.signUp({email, password, options: {
+      data: {username}
+    }})
+    if(error){
+      //console.log("sign up error ", error);
+      res.send({success: false, error})
+    }
+    
+      res.send({success: true, data})
+    }catch(err){
+      res.send({success: false, err})
+    }
   })
 
   //signOut
