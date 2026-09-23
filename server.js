@@ -1,12 +1,16 @@
 import express from "express";
 import cors from "cors";
 import supabase from "./supabase.js";
+import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 
 dotenv.config({ path: ".env.local" });
 
 const app = express();
 const PORT = process.env.PORT || 7005;
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
+const bucket = process.env.SUPABASE_STORAGE
 
 app.use(cors());
 app.use(express.json());
@@ -74,15 +78,54 @@ app.get("/", (req, res) => {
     }
   })
 
-  //signOut
-  app.get("/signout", (req, res) => {
-
-  })
+ 
 
   //reqImageURL
-  app.get("/getimageurl", (req, res) => {
+  app.post("/api/getimageurl", async(req, res) => {
+    const userId = req.body.id
+    const path = `${userId}/avatar`
+    const authHeader = req.headers.authorization;
+    
 
+    if (!authHeader?.startsWith("Bearer ")) {
+      res.send({success: fail})
+      return
+    }
+    
+    //unique client has to be used to authenticate user, front end didn't require this
+    const supabaseAuth = createClient(
+    supabaseUrl, supabaseKey, 
+    {
+      global: {
+        headers: {
+          Authorization: authHeader,
+        },
+      },
+    }
+  );
+
+  const {data: user, error: userError} = await supabaseAuth.auth.getUser();
+
+  if (userError || !user) {
+    console.log("server userError", userError)
+    console.log("server no user")
+    res.send({success: false, data: userError})
+    return
+  }
+
+  const { data, error } = await supabaseAuth.storage.from(bucket)
+    .createSignedUrl(path, 60 * 60); 
+
+    if (error) {
+      console.log("server error in requesting url", error)
+    res.send({success: false});
+    return
+  }
+
+  res.send({success: true, data: data})
   })
+
+  
 
   //uploadImage
   app.get("/uploadimage", (req, res) => {
