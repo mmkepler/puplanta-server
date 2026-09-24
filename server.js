@@ -10,6 +10,7 @@ const app = express();
 const PORT = process.env.PORT || 7005;
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
+const supabaseService = process.env.SUPABASE_SERVICE
 const bucket = process.env.SUPABASE_STORAGE
 
 app.use(cors());
@@ -86,24 +87,35 @@ app.get("/", (req, res) => {
 
   
 
-  //uploadImage
-  app.get("/uploadimage", (req, res) => {
-
-  })
-
-  //resetPassword
-  app.get("/resetpassord", (req, res) => {
-
-  })
-
-  //validate? might be a front end
-  app.get("/validate", (req, res) => {
-
-  })
-
   //deleteAccount
-  app.get("/deleteuser", (req, res) => {
+  app.post("/api/deleteuser", async (req, res) => {
+    let userId = req.body.id
+    let path = `${userId}/avatar`
+    const supabaseAdmin = createClient(supabaseUrl, supabaseService, {
+      auth: {
+         autoRefreshToken: false,
+          persistSession: false,
+      }
+    })
+    try{
+      const {error: deleteError} = await supabase.storage.from(bucket).remove([path])
 
+      if(deleteError){
+        return {success: false, data: deleteError}
+      }
+
+      const { data, error } = await supabaseAdmin.auth.admin.deleteUser(userId)
+
+      if(error){
+        console.log("server delete user error :", error)
+        return {success: false, data: error}
+      }
+      return {success: true, data}
+      
+    }catch(err){  
+      console.log("server delete user catch error :", err)
+      return {success: false, data: err}
+    }
   })
 
 
