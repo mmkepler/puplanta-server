@@ -62,67 +62,26 @@ app.get("/", (req, res) => {
 
   //signUpUser
   app.post("/api/signup", async(req, res) => {
-    const [email, password, username] = req.body
+    const {email, password, username} = req.body
+
+    if(!email || !password || !username){
+      return {success: false, data: "missing email, password or username"}
+    }
+
     try{
       const {data, error} = await supabase.auth.signUp({email, password, options: {
       data: {username}
     }})
     if(error){
       //console.log("sign up error ", error);
-      res.send({success: false, error})
+      res.send({success: false, data: error})
+      return
     }
     
       res.send({success: true, data})
     }catch(err){
-      res.send({success: false, err})
+      res.send({success: false, data: err})
     }
-  })
-
- 
-
-  //reqImageURL
-  app.post("/api/getimageurl", async(req, res) => {
-    const userId = req.body.id
-    const path = `${userId}/avatar`
-    const authHeader = req.headers.authorization;
-    
-
-    if (!authHeader?.startsWith("Bearer ")) {
-      res.send({success: fail})
-      return
-    }
-    
-    //unique client has to be used to authenticate user, front end didn't require this
-    const supabaseAuth = createClient(
-    supabaseUrl, supabaseKey, 
-    {
-      global: {
-        headers: {
-          Authorization: authHeader,
-        },
-      },
-    }
-  );
-
-  const {data: user, error: userError} = await supabaseAuth.auth.getUser();
-
-  if (userError || !user) {
-    console.log("server userError", userError)
-    console.log("server no user")
-    res.send({success: false, data: userError})
-    return
-  }
-
-  const { data, error } = await supabaseAuth.storage.from(bucket)
-    .createSignedUrl(path, 60 * 60); 
-
-    if (error) {
-      console.log("server error in requesting url", error)
-    res.send({success: false});
-    return
-  }
-
-  res.send({success: true, data: data})
   })
 
   
