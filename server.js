@@ -121,8 +121,102 @@ app.get("/", (req, res) => {
 
 //API Modal/Vote Requsts
   //updateVote
-  app.get("/updateVote", (req, res) => {
+  app.post("/api/updatevote", async (req, res) => {
+    const {id, locationVotes, storeuuid, type, userVotesArr, choice} = req.body
+    //console.log("all variables server ", id, locationVotes, storeuuid, type, userVotesArr, choice)
+  
+    const supabaseAd = createClient(
+      supabaseUrl,
+      supabaseService,
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false,
+        },
+      }
+    );
 
+    //The locations current up and down votes total
+    let currLocVotes = {up: Number(locationVotes.up || 0), down: Number(locationVotes.down || 0)}
+    //users vote history for location or bland entry
+    let currUserVote = userVotesArr.find((vote) => vote.id === storeuuid) || {id: storeuuid, up: false, down: false}
+    //users vote history array
+    let currUserVotesArr = [...userVotesArr]
+
+    let updatedVote = {...currUserVote}
+
+    //check the users vote 
+    if (choice === "up") {
+    if (currUserVote.up) {
+      // Second upvote click: remove the upvote
+      updatedVote.up = false;
+      currLocVotes.up -= 1;
+    } else {
+      // Add an upvote
+      updatedVote.up = true;
+      currLocVotes.up += 1;
+
+      // Remove an existing downvote when switching
+      if (currUserVote.down) {
+        updatedVote.down = false;
+        currLocVotes.down -= 1;
+      }
+    }
+  } else if (choice === "down") {
+    if (currUserVote.down) {
+      // Second downvote click: remove the downvote
+      updatedVote.down = false;
+      currLocVotes.down -= 1;
+    } else {
+      // Add a downvote
+      updatedVote.down = true;
+      currLocVotes.down += 1;
+
+      // Remove an existing upvote when switching
+      if (currUserVote.up) {
+        updatedVote.up = false;
+        currLocVotes.up -= 1;
+      }
+    }
+  }
+
+    //add updated vote to users vote arr
+    let updatedVotesArr = [...currUserVotesArr]
+    const index = updatedVotesArr.findIndex(vote => vote.id === storeuuid)
+
+    //if it doesn't exist add new vote obj
+    if(index === -1){
+      updatedVotesArr.push(updatedVote)
+    } else {
+      updatedVotesArr[index] = updatedVote
+    }
+
+    let errorTracker = []
+
+    //add the updated votes array to profile
+    const {error: profileError} = await supabaseAd.from("profiles").update({[type]: updatedVotesArr}).eq("id", id)
+    
+    if(profileError){
+      errorTracker.push({error: "There was an error updating the user profile voting information. Please refresh and try again"})
+      res.send({success: false, data: errorTracker})
+      return
+    }
+
+    const {error: locationError} = await supabaseAd.from(type).update({votes: currLocVotes}).eq("uuid", storeuuid)
+    
+    if(locationError){
+      console.log("Location Error ", locationError)
+      errorTracker.push({error: "There was an error updating the location's voting data. Please refresh and try again"})
+    }
+    if(errorTracker.length){
+      console.log("in voting func ", errorTracker)
+      res.send({success: false, data: errorTracker})
+      return
+    }else {
+      res.send({success: true})
+      return
+    }
   })
 
 
