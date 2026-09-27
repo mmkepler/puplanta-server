@@ -62,28 +62,98 @@ app.get("/", (req, res) => {
   })
 
   //signUpUser
-  app.post("/api/signup", async(req, res) => {
-    const {email, password, username} = req.body
+  app.post("/api/signup", async (req, res) => {
+  const { email, password, username, token } = req.body;
+  const SECRET_KEY = process.env.CLOUDFLARE_SECRET;
 
-    if(!email || !password || !username){
-      return {success: false, data: "missing email, password or username"}
+  if (!email || !password || !username) {
+    return res.send({
+      success: false,
+      data: "Missing email, password, or username",
+      turnstile: {
+        success: false,
+        data: "Turnstile was not checked",
+      },
+    });
+  }
+
+  async function validateTurnstile(token, remoteip) {
+    try {
+      if (!token) {
+        return {
+          success: false,
+          data: "no token",
+        };
+      }
+
+      const response = await fetch(
+        "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            secret: SECRET_KEY,
+            response: token,
+            ...(remoteip && { remoteip }),
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      return result;
+    } catch (error) {
+      console.error("Turnstile validation error:", error);
+
+      return {
+        success: false,
+        data: error,
+        data: "Turnstile validation failed internally",
+      };
+    }
+  }
+
+  const turnstileInfo = await validateTurnstile(token, req.ip);
+
+  if (!turnstileInfo.success) {
+    return res.send({
+      success: false,
+      data: "Turnstile verification failed",
+      turnstile: turnstileInfo,
+    });
+  }
+
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          username,
+        },
+      },
+    });
+
+    if (error) {
+      return res.send({
+        success: false,
+        data: error,
+        turnstile: turnstileInfo,
+      });
     }
 
-    try{
-      const {data, error} = await supabase.auth.signUp({email, password, options: {
-      data: {username}
-    }})
-    if(error){
-      //console.log("sign up error ", error);
-      res.send({success: false, data: error})
-      return
-    }
-    
-      res.send({success: true, data})
-    }catch(err){
-      res.send({success: false, data: err})
-    }
-  })
+    return res.send({success: true, data, turnstile: turnstileInfo,
+    });
+  } catch (error) {
+    console.error("Signup error:", error);
+
+    return res.send({success: false, data: error, turnstile: turnstileInfo,
+    });
+  }
+});
+
 
   
 
