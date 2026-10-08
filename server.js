@@ -247,6 +247,33 @@ app.get("/", (req, res) => {
     }
   })
 
+  //request image url
+  app.post("/api/reqimageurl", async (req, res) => {
+    const path = req.body.path
+
+    const supabaseAdmin = createClient(supabaseUrl, supabaseService, {
+      auth: {
+         autoRefreshToken: false,
+          persistSession: false,
+      }
+    })
+
+    console.log("in server path and bucket : ", path, bucket)
+    try{
+      const {data, error} = await supabaseAdmin.storage.from(bucket).createSignedUrl(path, 60 * 60)
+      
+      if(error || !data?.signedUrl){
+        return res.send({success: false, data: error})
+      }
+      
+      return res.send({success: true, data: data})
+    } catch(err){
+      
+      return res.send({success: false, data: err})
+    }
+
+  })
+
 
 //API Modal/Vote Requsts
   //updateVote
