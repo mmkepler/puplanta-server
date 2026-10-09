@@ -234,7 +234,7 @@ app.get("/", (req, res) => {
       }
 
       const { data, error } = await supabaseAdmin.auth.admin.deleteUser(userId)
-
+    
       if(error){
         console.log("server delete user error :", error)
         return {success: false, data: error}
@@ -258,7 +258,6 @@ app.get("/", (req, res) => {
       }
     })
 
-    console.log("in server path and bucket : ", path, bucket)
     try{
       const {data, error} = await supabaseAdmin.storage.from(bucket).createSignedUrl(path, 60 * 60)
       
