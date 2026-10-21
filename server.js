@@ -44,8 +44,20 @@ app.get("/", (req, res) => {
 
   //signInUser
   app.post("/api/signin", async (req, res) => {
-    const {email, password, token} = req.body
+    const {email, password, token, hp} = req.body
     const SECRET_KEY = process.env.CLOUDFLARE_SECRET;
+
+    //if the honeypot in the form was filled out it ends the request
+    if(hp !== ""){
+      return res.send({
+        success: false,
+        data: "Bot triggered Honeypot",
+        turnstile: {
+          success: false,
+          data: "Turnstile was not checked due to honeypot being triggered"
+        }
+      })
+    }
 
     if (!email || !password) {
     return res.send({
@@ -58,129 +70,42 @@ app.get("/", (req, res) => {
     });
     }
 
-    async function validateTurnstile(token, remoteip) {
-    try {
-      if (!token) {
-        return {
-          success: false,
-          data: "no token",
-        };
-      }
-
-      const response = await fetch(
-        "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            secret: SECRET_KEY,
-            response: token,
-            ...(remoteip && { remoteip }),
-          }),
-        }
-      );
-
-      const result = await response.json();
-
-      return result;
-    } catch (error) {
-      console.error("Turnstile validation error:", error);
-
-      return {
-        success: false,
-        data: error,
-        data: "Turnstile validation failed internally",
-      };
-    }
-  }
     
-  const turnstileInfo = await validateTurnstile(token, req.ip);
-
-  if (!turnstileInfo.success) {
-    return res.send({
-      success: false,
-      data: "Turnstile verification failed",
-      turnstile: turnstileInfo,
-    });
-  }
     
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({email, password})
+      const { data, error } = await supabase.auth.signInWithPassword({email, password, options: {captchaToken: token}})
       if(error){
-        //console.log("server error ", error)
+        console.log("server error ", error)
         res.send({success: false, data: error})
       }
-      res.send({success: true, data, turnstile: turnstileInfo})
+      console.log("signin worked")
+      res.send({success: true, data})
     }catch(err){
-      //console.log("server error err : ", err)
-      res.send({success: false, data: err, turnstile: turnstileInfo})
+      console.log("server error err : ", err)
+      res.send({success: false, data: err})
     }
   })
 
   //signUpUser
   app.post("/api/signup", async (req, res) => {
-  const { email, password, username, token } = req.body;
+    console.log("signup user called")
+  const { email, password, username, token, hp } = req.body;
   const SECRET_KEY = process.env.CLOUDFLARE_SECRET;
 
+  //check for honeypot trigger
+  if(hp !== "") {
+    return res.send({
+      success: false,
+      data: "Bot triggered honeypot"
+    })
+  }
+
+  //Do I need to add !token
   if (!email || !password || !username) {
     return res.send({
       success: false,
       data: "Missing email, password, or username",
-      turnstile: {
-        success: false,
-        data: "Turnstile was not checked",
-      },
-    });
-  }
-
-  async function validateTurnstile(token, remoteip) {
-    try {
-      if (!token) {
-        return {
-          success: false,
-          data: "no token",
-        };
-      }
-
-      const response = await fetch(
-        "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            secret: SECRET_KEY,
-            response: token,
-            ...(remoteip && { remoteip }),
-          }),
-        }
-      );
-
-      const result = await response.json();
-
-      return result;
-    } catch (error) {
-      console.error("Turnstile validation error:", error);
-
-      return {
-        success: false,
-        data: error,
-        data: "Turnstile validation failed internally",
-      };
-    }
-  }
-
-  const turnstileInfo = await validateTurnstile(token, req.ip);
-
-  if (!turnstileInfo.success) {
-    return res.send({
-      success: false,
-      data: "Turnstile verification failed",
-      turnstile: turnstileInfo,
     });
   }
 
@@ -189,6 +114,7 @@ app.get("/", (req, res) => {
       email,
       password,
       options: {
+        captchaToken: token,
         data: {
           username,
         },
@@ -196,19 +122,18 @@ app.get("/", (req, res) => {
     });
 
     if (error) {
+      console.log("supabase error sign up user : ", error)
       return res.send({
         success: false,
         data: error,
-        turnstile: turnstileInfo,
       });
     }
-
-    return res.send({success: true, data, turnstile: turnstileInfo,
+    
+    return res.send({success: true, data,
     });
   } catch (error) {
     console.error("Signup error:", error);
-
-    return res.send({success: false, data: error, turnstile: turnstileInfo,
+    return res.send({success: false, data: error
     });
   }
 });
@@ -379,3 +304,192 @@ app.get("/", (req, res) => {
 app.listen(PORT, "127.0.0.1", () => {
   console.log(`Server running at http://127.0.0.1:${PORT}`);
 });
+
+
+
+/* 10/17
+//signInUser
+  app.post("/api/signin", async (req, res) => {
+    const {email, password, token, hp} = req.body
+    const SECRET_KEY = process.env.CLOUDFLARE_SECRET;
+
+    if(hp !== ""){
+      return res.send({
+        success: false,
+        data: "Bot triggered Honeypot",
+        turnstile: {
+          success: false,
+          data: "Turnstile was not checked due to honeypot being triggered"
+        }
+      })
+    }
+
+    if (!email || !password) {
+    return res.send({
+      success: false,
+      data: "Missing email or password",
+      turnstile: {
+        success: false,
+        data: "Turnstile was not checked",
+      },
+    });
+    }
+
+    async function validateTurnstile(token, remoteip) {
+    try {
+      if (!token) {
+        return {
+          success: false,
+          data: "no token",
+        };
+      }
+
+      const response = await fetch(
+        "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            secret: SECRET_KEY,
+            response: token,
+            ...(remoteip && { remoteip }),
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      return result;
+    } catch (error) {
+      console.error("Turnstile validation error:", error);
+
+      return {
+        success: false,
+        data: error,
+        data: "Turnstile validation failed internally",
+      };
+    }
+  }
+    
+  const turnstileInfo = await validateTurnstile(token, req.ip);
+
+  if (!turnstileInfo.success) {
+    return res.send({
+      success: false,
+      data: "Turnstile verification failed",
+      turnstile: turnstileInfo,
+    });
+  }
+    
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({email, password})
+      if(error){
+        //console.log("server error ", error)
+        res.send({success: false, data: error})
+      }
+      res.send({success: true, data, turnstile: turnstileInfo})
+    }catch(err){
+      //console.log("server error err : ", err)
+      res.send({success: false, data: err, turnstile: turnstileInfo})
+    }
+  })
+
+*/
+
+/* 10/17
+ //signUpUser
+  app.post("/api/signup", async (req, res) => {
+  const { email, password, username, token } = req.body;
+  const SECRET_KEY = process.env.CLOUDFLARE_SECRET;
+
+  if (!email || !password || !username) {
+    return res.send({
+      success: false,
+      data: "Missing email, password, or username",
+      turnstile: {
+        success: false,
+        data: "Turnstile was not checked",
+      },
+    });
+  }
+
+  async function validateTurnstile(token, remoteip) {
+    try {
+      if (!token) {
+        return {
+          success: false,
+          data: "no token",
+        };
+      }
+
+      const response = await fetch(
+        "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            secret: SECRET_KEY,
+            response: token,
+            ...(remoteip && { remoteip }),
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      return result;
+    } catch (error) {
+      console.error("Turnstile validation error:", error);
+
+      return {
+        success: false,
+        data: error,
+        data: "Turnstile validation failed internally",
+      };
+    }
+  }
+
+  const turnstileInfo = await validateTurnstile(token, req.ip);
+
+  if (!turnstileInfo.success) {
+    return res.send({
+      success: false,
+      data: "Turnstile verification failed",
+      turnstile: turnstileInfo,
+    });
+  }
+
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          username,
+        },
+      },
+    });
+
+    if (error) {
+      return res.send({
+        success: false,
+        data: error,
+        turnstile: turnstileInfo,
+      });
+    }
+
+    return res.send({success: true, data, turnstile: turnstileInfo,
+    });
+  } catch (error) {
+    console.error("Signup error:", error);
+
+    return res.send({success: false, data: error, turnstile: turnstileInfo,
+    });
+  }
+});
+ */
