@@ -3,6 +3,8 @@ import cors from "cors";
 import supabase from "./supabase.js";
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
+import multer from "multer";
+const upload = multer({ storage: multer.memoryStorage() });
 
 dotenv.config({ path: ".env.local" });
 
@@ -196,6 +198,55 @@ app.get("/", (req, res) => {
       return res.send({success: false, data: err})
     }
 
+  })
+
+  //upload image
+  app.post("/api/uploadimg", upload.single("file"),  async (req, res) => {
+    const {bucket, path, userId} = req.body;
+    const file = req.file;
+
+    console.log({ bucket, path, userId });
+    console.log(file?.originalname, file?.mimetype, file?.size);
+   
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"]
+
+    const supabaseAdmin = createClient(supabaseUrl, supabaseService, {
+      auth: {
+         autoRefreshToken: false,
+          persistSession: false,
+      }
+    })
+
+    if(!file || !bucket || !path ||!userId){
+      return res.send({success: false, data: "missing file, bucket, userId or path"})
+    }
+
+    try{
+      const { error: uploadError } = await supabaseAdmin.storage
+    .from(bucket)
+    .upload(path, file.buffer, {
+      upsert: true,
+      contentType: file.mimetype,
+    });
+
+    if(uploadError){
+      console.log("uploadError : ", uploadError)
+      return res.send({success: false, data: "There was an upload error, try again."})
+    }
+
+    const {data, reqError} = await supabaseAdmin.storage.from(bucket).createSignedUrl(path, 60 * 60)
+
+    if(reqError){
+      console.log("reqError : ", reqError)
+      return res.send({success: false, data: "There was an error requesting your profile iimage"})
+    }
+
+    return res.send({success: true, data: data})
+
+    }catch(err){
+      console.log("catch err : ", err)
+      return res.send({success: false, data: err})
+    }
   })
 
 
