@@ -217,7 +217,7 @@ app.get("/", (req, res) => {
       }
     })
 
-    if(!file || !bucket || !path ||!userId){
+    if(!file || !bucket || !path || !userId){
       return res.send({success: false, data: "missing file, bucket, userId or path"})
     }
 
@@ -247,6 +247,67 @@ app.get("/", (req, res) => {
       console.log("catch err : ", err)
       return res.send({success: false, data: err})
     }
+  })
+
+  //reset pass
+  app.post("/api/resetpass", async (req, res) => {
+    const {email, token} = req.body
+
+    try{
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email,{ redirectTo: "http://localhost:5173/validate", captchaToken: token})
+      if(error){
+        console.log("error reset password : ", error)
+        return res.send({success: false, data: error})
+      }
+      return res.send({success: true, data: data})
+    }catch(err){
+      console.log("err in catch : ", err)
+      return res.send({success: false, data: err})
+    }
+  })
+
+  //change password
+  app.post("/api/changepass", async (req, res) => {
+    const {pass, token, session} = req.body
+
+    //access token needs to be sent
+
+    //console.log("in change pass : ", pass, userId, token, accessToken)
+    //Do I need the auth version of supabase?
+
+      const supabaseAdmin = createClient(supabaseUrl, supabaseService, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      });
+
+    if(!pass || !token){
+      return res.send({success: false, data: "missing user id or pass"})
+    }
+
+    
+    try{
+      const {data: {user}, error: userError} = await supabase.auth.getUser(session);
+
+      if(!user || userError){
+        return res.send({success: false, data: "Missing user or unable to find user"})
+      }
+
+
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(user.id, {password: pass})
+
+      if(error){
+        console.log("error c pass : ", error)
+        return res.send({success: false, data: error})
+      }
+      console.log("it changed")
+      return res.send({success: true, data: "none"})
+    }catch(err){
+      console.log("error catch : ", err)
+      return res.send({success: false, data: err})
+    }
+     
   })
 
 
