@@ -268,7 +268,7 @@ app.get("/", (req, res) => {
 
   //change password
   app.post("/api/changepass", async (req, res) => {
-    const {pass, token, session} = req.body
+    const {pass, oldpass, token, session} = req.body
 
     //access token needs to be sent
 
@@ -282,8 +282,8 @@ app.get("/", (req, res) => {
         },
       });
 
-    if(!pass || !token){
-      return res.send({success: false, data: "missing user id or pass"})
+    if(!pass || !oldpass || !token){
+      return res.send({success: false, data: "missing user id or password"});
     }
 
     
@@ -291,21 +291,21 @@ app.get("/", (req, res) => {
       const {data: {user}, error: userError} = await supabase.auth.getUser(session);
 
       if(!user || userError){
-        return res.send({success: false, data: "Missing user or unable to find user"})
+        return res.send({success: false, data: "Missing user or unable to find user"});
       }
 
 
-      const { error } = await supabaseAdmin.auth.admin.updateUserById(user.id, {password: pass})
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(user.id, {password: pass, current_password: oldpass})
 
       if(error){
         console.log("error c pass : ", error)
-        return res.send({success: false, data: error})
+        return res.send({success: false, data: error.message})
       }
       console.log("it changed")
       return res.send({success: true, data: "none"})
     }catch(err){
       console.log("error catch : ", err)
-      return res.send({success: false, data: err})
+      return res.send({success: false, data: err.message})
     }
      
   })
